@@ -6,6 +6,18 @@ struct Database {
     wal: WAL,
 }
 
+impl Database {
+    pub fn set(&mut self, key: &[u8], value: &[u8], timestamp: u128) -> Result<(), std::io::Error> {
+        self.memtable.set(key, value, timestamp);
+        self.wal.set(key, value, timestamp)
+    }
+
+    pub fn delete(&mut self, key: &[u8], timestamp: u128) -> Result<(), std::io::Error> {
+        self.memtable.delete(key, timestamp);
+        self.wal.delete(key, timestamp)
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -27,7 +39,6 @@ mod tests {
         let key = vec![0];
         let value = vec![1];
         let timestamp = 12;
-        db.wal.set(key.as_slice(), value.as_slice(), timestamp).ok();
-        db.memtable.set(key.as_slice(), value.as_slice(), timestamp);
+        db.set(key.as_slice(), value.as_slice(), timestamp).ok();
     }
 }
