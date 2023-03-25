@@ -1,5 +1,6 @@
 mod memtable;
 mod wal;
+mod sstable;
 
 pub fn add(left: usize, right: usize) -> usize {
     left + right
@@ -19,3 +20,5 @@ mod tests {
     }
 
 }
+
+
