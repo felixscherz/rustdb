@@ -103,7 +103,7 @@ impl MemTable {
 }
 
 #[cfg(test)]
-mod tests {
+pub mod tests {
     use super::*;
 
     #[test]
@@ -111,7 +111,7 @@ mod tests {
         let table: MemTable = MemTable::new();
     }
 
-    fn prepare_memtable() -> MemTable {
+    pub fn prepare_memtable() -> MemTable {
         let entries: Vec<MemTableEntry> = (0..10)
             .map(|i| MemTableEntry {
                 key: vec![i],

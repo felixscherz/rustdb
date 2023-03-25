@@ -1,6 +1,7 @@
 mod memtable;
 mod wal;
 mod sstable;
+mod database;
 
 pub fn add(left: usize, right: usize) -> usize {
     left + right

@@ -69,7 +69,6 @@ impl SSTable {
     pub fn flush(&mut self) -> io::Result<()> {
         self.file.flush()
     }
-
 }
 
 #[cfg(test)]
