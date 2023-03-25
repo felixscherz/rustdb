@@ -1,13 +1,33 @@
+use super::iterator::MemTableIterator;
+
 pub struct MemTable {
     entries: Vec<MemTableEntry>,
     size: usize,
 }
 
+#[derive(Clone)]
 pub struct MemTableEntry {
     pub key: Vec<u8>,
     pub value: Option<Vec<u8>>,
     pub timestamp: u128,
     pub deleted: bool,
+}
+
+impl IntoIterator for MemTable {
+    type IntoIter = MemTableIterator;
+    type Item = MemTableEntry;
+
+    fn into_iter(self) -> MemTableIterator {
+        MemTableIterator::new(self.get_entries_reversed())
+    }
+}
+
+impl MemTable {
+    pub fn get_entries_reversed(&self) -> Vec<MemTableEntry> {
+        let mut entries = self.entries.clone();
+        entries.reverse();
+        entries
+    }
 }
 
 impl MemTable {
@@ -91,8 +111,7 @@ mod tests {
         let table: MemTable = MemTable::new();
     }
 
-    #[test]
-    fn do_search() {
+    fn prepare_memtable() -> MemTable {
         let entries: Vec<MemTableEntry> = (0..10)
             .map(|i| MemTableEntry {
                 key: vec![i],
@@ -105,8 +124,21 @@ mod tests {
             size: entries.len(),
             entries,
         };
+        table
+    }
 
+    #[test]
+    fn do_search() {
+        let table = prepare_memtable();
         let res = table.get_index(&vec![2][..]);
         assert!(res.is_ok());
+    }
+
+    #[test]
+    fn do_iter() {
+        let table = prepare_memtable();
+        for entry in table.into_iter() {
+            assert_eq!(entry.timestamp, 12)
+        }
     }
 }
