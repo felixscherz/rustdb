@@ -23,8 +23,8 @@ impl IntoIterator for MemTable {
 }
 
 impl MemTable {
-    pub fn get_entries_reversed(self) -> Vec<MemTableEntry> {
-        let mut entries = self.entries;
+    pub fn get_entries_reversed(&self) -> Vec<MemTableEntry> {
+        let mut entries = self.entries.clone();
         entries.reverse();
         entries
     }

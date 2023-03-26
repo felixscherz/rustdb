@@ -1,6 +1,6 @@
 use std::{
-    fs::{File, OpenOptions},
-    io::{self, BufWriter, Write},
+    fs::{read_dir, File, OpenOptions},
+    io::{self, BufReader, BufWriter, Write},
     path::{Path, PathBuf},
     time::{SystemTime, UNIX_EPOCH},
 };
@@ -69,6 +69,28 @@ impl SSTable {
     pub fn flush(&mut self) -> io::Result<()> {
         self.file.flush()
     }
+
+    pub fn get(&self, key: &[u8]) -> io::Result<Option<SSTableEntry>> {
+        // simply go through entire sstable
+        let iterator = SSTableIterator::new(self.path.clone())?;
+        for entry in iterator {
+            if entry.key.as_slice() == key {
+                return Ok(Some(entry))
+            }
+        }
+        Ok(None)
+    }
+}
+
+pub fn files_with_ext(dir: &Path, ext: &str) -> Vec<PathBuf> {
+    let mut files = Vec::new();
+    for file in read_dir(dir).unwrap() {
+        let path = file.unwrap().path();
+        if path.extension().unwrap() == ext {
+            files.push(path);
+        }
+    }
+    files
 }
 
 #[cfg(test)]

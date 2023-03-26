@@ -3,6 +3,7 @@ use std::io::BufReader;
 use std::io::{self, Read};
 use std::path::PathBuf;
 
+#[derive(Debug)]
 pub struct SSTableEntry {
     pub key: Vec<u8>,
     pub value: Option<Vec<u8>>,
