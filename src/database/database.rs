@@ -72,7 +72,9 @@ mod tests {
         let path = Path::new("data");
         let mut sstable = SSTable::new(&path).unwrap();
         db.set(key.as_slice(), value.as_slice(), timestamp).ok();
-        sstable.set(key.as_slice(), value.as_slice(), timestamp).ok();
+        sstable
+            .set(key.as_slice(), value.as_slice(), timestamp)
+            .ok();
         sstable.flush().ok();
         db.flush(path).ok();
         let item = sstable.get(key.as_slice()).unwrap();
