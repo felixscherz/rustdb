@@ -5,7 +5,7 @@ pub struct MemTable {
     size: usize,
 }
 
-#[derive(Clone)]
+#[derive(Clone, Debug)]
 pub struct MemTableEntry {
     pub key: Vec<u8>,
     pub value: Option<Vec<u8>>,
