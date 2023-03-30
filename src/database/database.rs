@@ -1,3 +1,4 @@
+#![allow(dead_code)]
 use crate::{
     memtable::{memtable::MemTableEntry, MemTable},
     sstable::sstable::SSTable,
@@ -14,7 +15,8 @@ struct Database {
 
 impl Database {
     pub fn new(dir: &Path) -> io::Result<Database> {
-        let (wal, memtable) = WAL::load_from_dir(dir)?; // if this fails, Err will be returned
+        let wal = WAL::new(dir)?;
+        let memtable = MemTable::new();
         Ok(Database { wal, memtable })
     }
 
