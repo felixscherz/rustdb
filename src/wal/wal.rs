@@ -112,3 +112,38 @@ pub fn files_with_ext(dir: &Path, ext: &str) -> Vec<PathBuf> {
     }
     files
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    fn create_wal() -> io::Result<WAL> {
+        let path = Path::new("data");
+        WAL::new(&path)
+    }
+
+    fn create_entry() -> WALEntry {
+        WALEntry {
+            key: vec![1, 2, 3],
+            value: Some(vec![9]),
+            timestamp: 1,
+            deleted: false,
+        }
+    }
+
+    fn write_to_wal(wal: &mut WAL, entry: WALEntry) -> io::Result<()> {
+        wal.set(
+            entry.key.as_slice(),
+            entry.value.unwrap().as_slice(),
+            entry.timestamp,
+        )
+    }
+
+    #[test]
+    fn test_write_to_wal() -> io::Result<()> {
+        let mut wal = create_wal().unwrap();
+        let entry = create_entry();
+        write_to_wal(&mut wal, entry)
+    }
+
+}
