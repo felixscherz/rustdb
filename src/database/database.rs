@@ -41,12 +41,9 @@ impl Database {
         // if None -> search sstables for the value, only after everything has been searched its
         // not in there
     }
-    fn flush(&self, dir: &Path) -> io::Result<()> {
+    fn flush(&mut self, dir: &Path) -> io::Result<()> {
         let mut sstable = SSTable::new(dir)?;
         for entry in self.memtable.get_entries_reversed().into_iter() {
-            // problem is that database own memtable, into_iter
-            // would move it, maybe need to create Iterator without
-            // Into?
             match entry.value {
                 Some(value) => {
                     sstable.set(entry.key.as_slice(), value.as_slice(), entry.timestamp)?
@@ -54,6 +51,8 @@ impl Database {
                 None => sstable.delete(entry.key.as_slice(), entry.timestamp)?,
             };
         }
+        sstable.flush()?;
+        self.sstables.push(sstable.path);
         Ok(())
     }
 }
@@ -64,7 +63,6 @@ mod tests {
 
     fn create_path() -> PathBuf {
         PathBuf::from("data")
-
     }
 
     fn create_database() -> Database {
@@ -91,12 +89,25 @@ mod tests {
     }
 
     #[test]
-    fn test_read_after_flusing_to_sstable () {
+    fn test_sstable_path_is_added_on_flush() {
+        let mut db = create_database();
+        let entry = create_memtable_entry();
+        let path = create_path();
+        write_entry_to_db(&mut db, &entry);
+        db.flush(&path).ok();
+        let sstables = &db.sstables;
+        assert_eq!(sstables.len(), 1);
+    }
+
+    #[test]
+    fn test_read_after_flusing_to_sstable() {
         let mut db = create_database();
         let entry = create_memtable_entry();
         write_entry_to_db(&mut db, &entry);
-
     }
+
+
+
     #[test]
     fn test_items_from_database_and_sstable_are_identical() {
         let mut db = create_database();

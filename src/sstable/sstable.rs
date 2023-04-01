@@ -12,7 +12,7 @@ use super::iterator::{SSTableEntry, SSTableIterator};
 // +---------------+---------------+-----------------+-...-+--...--+-----------------+
 
 pub struct SSTable {
-    path: PathBuf,
+    pub path: PathBuf,
     file: BufWriter<File>,
 }
 
