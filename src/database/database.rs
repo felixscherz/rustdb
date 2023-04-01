@@ -180,6 +180,18 @@ mod tests {
         assert!(db.get(&entry.key.as_slice()).is_some());
     }
 
+    #[test]
+    fn test_scanning_sstables_for_non_existent_entry_returns_none() {
+        let mut db = create_database();
+        let entry = create_memtable_entry();
+        write_entry_to_db(&mut db, &entry);
+        let path = create_path();
+        db.flush(&path).ok();
+        let key = vec![0, 0, 0, 0];
+        assert_ne!(key.as_slice(), entry.key.as_slice());
+        assert!(db.get(key.as_slice()).is_none());
+    }
+
     fn write_entry_to_sstable(sstable: &mut SSTable, entry: &MemTableEntry) {
         sstable
             .set(
