@@ -4,20 +4,26 @@ use crate::{
     sstable::sstable::SSTable,
     wal::wal::WAL,
 };
-use std::io;
+use std::{io, path::PathBuf};
 
 use std::path::Path;
 
 struct Database {
     memtable: MemTable,
     wal: WAL,
+    sstables: Vec<PathBuf>,
 }
 
 impl Database {
     pub fn new(dir: &Path) -> io::Result<Database> {
         let wal = WAL::new(dir)?;
         let memtable = MemTable::new();
-        Ok(Database { wal, memtable })
+        let sstables: Vec<PathBuf> = Vec::new();
+        Ok(Database {
+            wal,
+            memtable,
+            sstables,
+        })
     }
 
     pub fn set(&mut self, key: &[u8], value: &[u8], timestamp: u128) -> Result<(), std::io::Error> {
@@ -71,18 +77,28 @@ mod tests {
     }
 
     #[test]
-    fn create_db() {
+    fn test_read_after_write() {
+        let mut db = create_database();
+        let entry = create_memtable_entry();
+        write_entry_to_db(&mut db, &entry);
+        let db_entry = db.get(&entry.key.as_slice()).unwrap();
+        assert_eq!(&entry.value.unwrap(), db_entry.value.as_ref().unwrap());
+    }
+    #[test]
+    fn test_items_from_database_and_sstable_are_identical() {
         let mut db = create_database();
         let path = Path::new("data");
         let mut sstable = SSTable::new(&path).unwrap();
         let entry = create_memtable_entry();
-        dbg!(&entry);
-        db.set(
-            entry.key.as_slice(),
-            entry.value.as_ref().unwrap().as_slice(),
-            entry.timestamp,
-        )
-        .ok();
+        write_entry_to_db(&mut db, &entry);
+        write_entry_to_sstable(&mut sstable, &entry);
+        sstable.flush().ok();
+        db.flush(path).ok();
+        let item = sstable.get(entry.key.as_slice()).unwrap();
+        assert_eq!(entry.value.unwrap(), item.unwrap().value.unwrap());
+    }
+
+    fn write_entry_to_sstable(sstable: &mut SSTable, entry: &MemTableEntry) {
         sstable
             .set(
                 entry.key.as_slice(),
@@ -90,9 +106,20 @@ mod tests {
                 entry.timestamp,
             )
             .ok();
-        sstable.flush().ok();
-        db.flush(path).ok();
-        let item = sstable.get(entry.key.as_slice()).unwrap();
-        assert_eq!(entry.value.unwrap(), item.unwrap().value.unwrap());
+    }
+
+    fn write_entry_to_db(db: &mut Database, entry: &MemTableEntry) {
+        db.set(
+            entry.key.as_slice(),
+            entry.value.as_ref().unwrap().as_slice(),
+            entry.timestamp,
+        )
+        .ok();
+    }
+
+    #[test]
+    fn test_read_from_sstable() {
+        let mut db = create_database();
+        let entry = create_memtable_entry();
     }
 }
