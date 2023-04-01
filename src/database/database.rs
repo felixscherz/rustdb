@@ -62,9 +62,14 @@ impl Database {
 mod tests {
     use super::*;
 
+    fn create_path() -> PathBuf {
+        PathBuf::from("data")
+
+    }
+
     fn create_database() -> Database {
-        let path = Path::new("data");
-        Database::new(path).unwrap()
+        let path = create_path();
+        Database::new(&path).unwrap()
     }
 
     fn create_memtable_entry() -> MemTableEntry {
@@ -84,16 +89,24 @@ mod tests {
         let db_entry = db.get(&entry.key.as_slice()).unwrap();
         assert_eq!(&entry.value.unwrap(), db_entry.value.as_ref().unwrap());
     }
+
+    #[test]
+    fn test_read_after_flusing_to_sstable () {
+        let mut db = create_database();
+        let entry = create_memtable_entry();
+        write_entry_to_db(&mut db, &entry);
+
+    }
     #[test]
     fn test_items_from_database_and_sstable_are_identical() {
         let mut db = create_database();
-        let path = Path::new("data");
+        let path = create_path();
         let mut sstable = SSTable::new(&path).unwrap();
         let entry = create_memtable_entry();
         write_entry_to_db(&mut db, &entry);
         write_entry_to_sstable(&mut sstable, &entry);
         sstable.flush().ok();
-        db.flush(path).ok();
+        db.flush(&path).ok();
         let item = sstable.get(entry.key.as_slice()).unwrap();
         assert_eq!(entry.value.unwrap(), item.unwrap().value.unwrap());
     }
