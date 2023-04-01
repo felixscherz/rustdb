@@ -3,6 +3,7 @@ use std::io::BufReader;
 use std::io::{self, Read};
 use std::path::PathBuf;
 
+#[derive(Debug)]
 pub struct WALEntry {
     pub key: Vec<u8>,
     pub value: Option<Vec<u8>>,
@@ -10,6 +11,7 @@ pub struct WALEntry {
     pub deleted: bool,
 }
 
+#[derive(Debug)]
 pub struct WALIterator {
     reader: BufReader<File>,
 }

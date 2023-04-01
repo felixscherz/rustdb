@@ -2,7 +2,7 @@ use super::iterator::MemTableIterator;
 
 pub struct MemTable {
     entries: Vec<MemTableEntry>,
-    size: usize,
+    pub size: usize,
 }
 
 #[derive(Clone, Debug)]

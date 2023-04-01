@@ -53,6 +53,8 @@ impl Database {
         }
         sstable.flush()?;
         self.sstables.push(sstable.path);
+        self.memtable = MemTable::new();
+        self.wal = WAL::new(&self.wal.path.parent().unwrap())?;
         Ok(())
     }
 }
@@ -92,21 +94,32 @@ mod tests {
     fn test_sstable_path_is_added_on_flush() {
         let mut db = create_database();
         let entry = create_memtable_entry();
-        let path = create_path();
         write_entry_to_db(&mut db, &entry);
+        let path = create_path();
         db.flush(&path).ok();
         let sstables = &db.sstables;
         assert_eq!(sstables.len(), 1);
     }
 
     #[test]
-    fn test_read_after_flusing_to_sstable() {
+    fn test_memtable_is_empty_after_flush() {
         let mut db = create_database();
         let entry = create_memtable_entry();
         write_entry_to_db(&mut db, &entry);
+        let path = create_path();
+        db.flush(&path).ok();
+        assert_eq!(db.memtable.size, 0);
     }
 
-
+    #[test]
+    fn test_wal_is_empty_after_flush() {
+        let mut db = create_database();
+        let entry = create_memtable_entry();
+        write_entry_to_db(&mut db, &entry);
+        let path = create_path();
+        db.flush(&path).ok();
+        assert_eq!(db.wal.into_iter().count(), 0);
+    }
 
     #[test]
     fn test_items_from_database_and_sstable_are_identical() {
@@ -139,11 +152,5 @@ mod tests {
             entry.timestamp,
         )
         .ok();
-    }
-
-    #[test]
-    fn test_read_from_sstable() {
-        let mut db = create_database();
-        let entry = create_memtable_entry();
     }
 }

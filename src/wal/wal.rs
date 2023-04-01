@@ -10,7 +10,7 @@ use crate::memtable::MemTable;
 use super::iterator::{WALEntry, WALIterator};
 
 pub struct WAL {
-    path: PathBuf,
+    pub path: PathBuf,
     file: BufWriter<File>,
 }
 
