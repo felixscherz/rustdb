@@ -1,7 +1,7 @@
 #![allow(dead_code)]
 use crate::{
     memtable::{memtable::MemTableEntry, MemTable},
-    sstable::sstable::SSTable,
+    sstable::{iterator::SSTableEntry, sstable::SSTable},
     wal::wal::WAL,
 };
 use std::{io, path::PathBuf};
@@ -12,6 +12,33 @@ struct Database {
     memtable: MemTable,
     wal: WAL,
     sstables: Vec<PathBuf>,
+}
+
+struct DatabaseEntry {
+    pub key: Vec<u8>,
+    pub value: Option<Vec<u8>>,
+    pub timestamp: u128,
+    pub deleted: bool,
+}
+
+impl DatabaseEntry {
+    fn from_memtable_entry(entry: &MemTableEntry) -> Self {
+        DatabaseEntry {
+            key: entry.key.clone(),
+            value: entry.value.clone(),
+            timestamp: entry.timestamp,
+            deleted: entry.deleted,
+        }
+    }
+
+    fn from_sstable_entry(entry: &SSTableEntry) -> Self {
+        DatabaseEntry {
+            key: entry.key.clone(),
+            value: entry.value.clone(),
+            timestamp: entry.timestamp,
+            deleted: entry.deleted,
+        }
+    }
 }
 
 impl Database {
@@ -36,10 +63,18 @@ impl Database {
         self.wal.delete(key, timestamp)
     }
 
-    pub fn get(&self, key: &[u8]) -> Option<&MemTableEntry> {
-        self.memtable.get(key)
-        // if None -> search sstables for the value, only after everything has been searched its
-        // not in there
+    pub fn get(&self, key: &[u8]) -> Option<DatabaseEntry> {
+        if let Some(entry) = self.memtable.get(key) {
+            Some(DatabaseEntry::from_memtable_entry(entry))
+        } else {
+            for path in self.sstables.iter() {
+                let sstable = SSTable::from_path(path).ok().unwrap();
+                if let Some(entry) = sstable.get(key).ok().unwrap() {
+                    return Some(DatabaseEntry::from_sstable_entry(&entry));
+                }
+            }
+            None
+        }
     }
     fn flush(&mut self, dir: &Path) -> io::Result<()> {
         let mut sstable = SSTable::new(dir)?;
@@ -133,6 +168,16 @@ mod tests {
         db.flush(&path).ok();
         let item = sstable.get(entry.key.as_slice()).unwrap();
         assert_eq!(entry.value.unwrap(), item.unwrap().value.unwrap());
+    }
+
+    #[test]
+    fn test_scan_sstable_for_entries_when_not_found_in_memtable() {
+        let mut db = create_database();
+        let entry = create_memtable_entry();
+        write_entry_to_db(&mut db, &entry);
+        let path = create_path();
+        db.flush(&path).ok();
+        assert!(db.get(&entry.key.as_slice()).is_some());
     }
 
     fn write_entry_to_sstable(sstable: &mut SSTable, entry: &MemTableEntry) {
