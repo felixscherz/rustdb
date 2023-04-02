@@ -71,15 +71,15 @@ impl SSTable {
                             (Some(entry), other_iterator.next())
                         }
                         Ordering::Equal => match entry.timestamp.cmp(&other_entry.timestamp) {
-                            Ordering::Less => {
+                            Ordering::Greater => {
                                 match entry.deleted {
                                     false => merged.write_set(entry)?,
                                     true => (),
                                 };
                                 (iterator.next(), other_iterator.next())
                             }
-                            Ordering::Greater => {
-                                match entry.deleted {
+                            Ordering::Less => {
+                                match other_entry.deleted {
                                     false => merged.write_set(other_entry)?,
                                     true => (),
                                 };
@@ -123,7 +123,6 @@ mod tests {
         }
     }
 
-
     #[test]
     fn test_deleted_records_no_longer_in_sstable() {
         let path = create_path();
@@ -135,8 +134,7 @@ mod tests {
         entry.timestamp = 2;
         entry.deleted = true;
         sstable_b.write_delete(entry).ok();
-        let merged = sstable_a.merge(sstable_b, &path);
-
-
+        let merged = sstable_a.merge(sstable_b, &path).ok().unwrap();
+        assert_eq!(merged.into_iter().count(), 0);
     }
 }
