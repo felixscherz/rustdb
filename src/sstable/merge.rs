@@ -6,17 +6,6 @@ use std::{
 
 use super::{iterator::SSTableEntry, sstable::SSTable};
 
-// from https://codereview.stackexchange.com/questions/233872/writing-slice-compare-in-a-more-compact-way
-// fn compare(a: &[u8], b: &[u8]) -> cmp::Ordering {
-//     for (ai, bi) in a.iter().zip(b.iter()) {
-//         match ai.cmp(&bi) {
-//             Ordering::Equal => continue,
-//             ord => return ord,
-//         }
-//     }
-//     a.len().cmp(&b.len())
-// }
-
 impl SSTable {
     fn write_set(&mut self, entry: SSTableEntry) -> io::Result<()> {
         self.set(
@@ -141,19 +130,17 @@ mod tests {
         let path = create_path();
         let mut sstable_a = create_sstable(&path);
         for i in (1..10).step_by(2) {
-           let entry = create_sstable_entry(vec![i], i.into(), false); 
-           sstable_a.write_set(entry).ok();
+            let entry = create_sstable_entry(vec![i], i.into(), false);
+            sstable_a.write_set(entry).ok();
         }
         let mut sstable_b = create_sstable(&path);
         for i in (0..9).step_by(2) {
-           let entry = create_sstable_entry(vec![i], i.into(), false); 
-           sstable_b.write_set(entry).ok();
+            let entry = create_sstable_entry(vec![i], i.into(), false);
+            sstable_b.write_set(entry).ok();
         }
         let merged = sstable_a.merge(sstable_b, &path).ok().unwrap();
         for (i, entry) in merged.into_iter().enumerate() {
             assert_eq!(i, usize::try_from(entry.timestamp).unwrap())
         }
-
-
     }
 }
