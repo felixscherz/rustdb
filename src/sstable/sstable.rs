@@ -1,6 +1,6 @@
 use std::{
     fs::{read_dir, File, OpenOptions},
-    io::{self, BufReader, BufWriter, Write},
+    io::{self, BufWriter, Write},
     path::{Path, PathBuf},
     time::{SystemTime, UNIX_EPOCH},
 };

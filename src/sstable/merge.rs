@@ -1,5 +1,5 @@
 use std::{
-    cmp::{self, Ordering},
+    cmp::Ordering,
     io::{self, Result},
     path::Path,
 };
