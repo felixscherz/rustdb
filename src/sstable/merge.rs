@@ -114,27 +114,28 @@ mod tests {
         SSTable::new(path).unwrap()
     }
 
-    fn create_sstable_entry() -> SSTableEntry {
+    fn create_sstable_entry(key: Vec<u8>, timestamp: u128, deleted: bool) -> SSTableEntry {
         SSTableEntry {
-            key: vec![1, 2, 3],
+            key,
             value: Some(vec![9]),
-            timestamp: 1,
-            deleted: false,
+            timestamp,
+            deleted,
         }
     }
 
     #[test]
     fn test_deleted_records_no_longer_in_sstable() {
         let path = create_path();
-        let entry = create_sstable_entry();
+        let entry = create_sstable_entry(vec![1], 0, false);
         let mut sstable_a = create_sstable(&path);
         sstable_a.write_set(entry).ok();
         let mut sstable_b = create_sstable(&path);
-        let mut entry = create_sstable_entry();
-        entry.timestamp = 2;
-        entry.deleted = true;
+        let entry = create_sstable_entry(vec![1], 1, true);
         sstable_b.write_delete(entry).ok();
         let merged = sstable_a.merge(sstable_b, &path).ok().unwrap();
         assert_eq!(merged.into_iter().count(), 0);
     }
+
+    #[test]
+    fn test_records_are_merged_in_order() {}
 }
