@@ -78,7 +78,7 @@ impl Database {
     }
     fn flush(&mut self, dir: &Path) -> io::Result<()> {
         let mut sstable = SSTable::new(dir)?;
-        for entry in self.memtable.get_entries_reversed().into_iter() {
+        for entry in &self.memtable {
             match entry.value {
                 Some(value) => {
                     sstable.set(entry.key.as_slice(), value.as_slice(), entry.timestamp)?

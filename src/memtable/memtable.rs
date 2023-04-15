@@ -13,20 +13,12 @@ pub struct MemTableEntry {
     pub deleted: bool,
 }
 
-impl IntoIterator for MemTable {
+impl IntoIterator for &MemTable {
     type IntoIter = MemTableIterator;
     type Item = MemTableEntry;
 
     fn into_iter(self) -> MemTableIterator {
-        MemTableIterator::new(self.get_entries_reversed())
-    }
-}
-
-impl MemTable {
-    pub fn get_entries_reversed(&self) -> Vec<MemTableEntry> {
-        let mut entries = self.entries.clone();
-        entries.reverse();
-        entries
+        MemTableIterator::new(self.entries.clone())
     }
 }
 
