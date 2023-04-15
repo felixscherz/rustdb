@@ -19,6 +19,15 @@
     * lookup key with binary search to find position between index entries
     * if exact match -> use byte offset to start reading
     * if possibly between two index elements -> use their byte offsets as start offset and end offset
+* to implement this, define a constant spacing BLOCK_SIZE (64KB) where between two index elements
+    there are at most BLOCK_SIZE segments
+* define a struct field `current_block_size` is increased
+* calculate size of an entry before writing and check `current_block_size + size <= BLOCK_SIZE`, if not
+    start a new block
+    
+
+
+
 
 
 ### performance
