@@ -11,9 +11,12 @@ use super::iterator::{SSTableEntry, SSTableIterator};
 // | Key Size (8B) | Tombstone(1B) | Value Size (8B) | Key | Value | Timestamp (16B) |
 // +---------------+---------------+-----------------+-...-+--...--+-----------------+
 
+const BLOCK_SIZE: usize = 65536;
+
 pub struct SSTable {
     pub path: PathBuf,
     file: BufWriter<File>,
+    current_block_size: usize,
 }
 
 impl IntoIterator for SSTable {
@@ -35,20 +38,34 @@ impl SSTable {
         let path = Path::new(dir).join(timestamp.to_string() + ".sstable");
         let file = OpenOptions::new().append(true).create(true).open(&path)?;
         let file = BufWriter::new(file);
+        let current_block_size = 0;
 
-        Ok(SSTable { path, file })
+        Ok(SSTable {
+            path,
+            file,
+            current_block_size,
+        })
     }
 
     pub fn from_path(path: &Path) -> io::Result<SSTable> {
         let file = OpenOptions::new().append(true).create(true).open(&path)?;
         let file = BufWriter::new(file);
+        let current_block_size = 0;
         Ok(SSTable {
             path: path.to_owned(),
             file,
+            current_block_size,
         })
     }
 
     pub fn set(&mut self, key: &[u8], value: &[u8], timestamp: u128) -> io::Result<()> {
+        let entry_size = size(key, Some(value), timestamp);
+        if self.current_block_size == 0 || self.current_block_size + entry_size > BLOCK_SIZE {
+            self.current_block_size = 0;
+            // write this item to index
+        }
+        self.current_block_size += entry_size;
+
         self.file.write_all(&key.len().to_le_bytes())?;
         self.file.write_all(&(false as u8).to_le_bytes())?;
         self.file.write_all(&value.len().to_le_bytes())?;
@@ -59,6 +76,10 @@ impl SSTable {
     }
 
     pub fn delete(&mut self, key: &[u8], timestamp: u128) -> io::Result<()> {
+        let entry_size = size(key, None, timestamp);
+        if self.current_block_size + entry_size > BLOCK_SIZE {
+            self.current_block_size = 0;
+        }
         self.file.write_all(&key.len().to_le_bytes())?;
         self.file.write_all(&(true as u8).to_le_bytes())?;
         self.file.write_all(key)?;
@@ -75,10 +96,21 @@ impl SSTable {
         let iterator = SSTableIterator::new(self.path.clone())?;
         for entry in iterator {
             if entry.key.as_slice() == key {
-                return Ok(Some(entry))
+                return Ok(Some(entry));
             }
         }
         Ok(None)
+    }
+}
+
+fn size(key: &[u8], value: Option<&[u8]>, timestamp: u128) -> usize {
+    let boolean_size = 1;
+    let size_in_bytes =
+        key.len() + key.len().to_le_bytes().len() + timestamp.to_le_bytes().len() + boolean_size;
+    if let Some(val) = value {
+        size_in_bytes + val.len() + val.len().to_le_bytes().len()
+    } else {
+        size_in_bytes
     }
 }
 
