@@ -5,6 +5,7 @@ use std::{
     time::{SystemTime, UNIX_EPOCH},
 };
 
+use super::data::Data;
 use super::iterator::{SSTableEntry, SSTableIterator};
 
 // +---------------+---------------+-----------------+-...-+--...--+-----------------+
@@ -15,6 +16,7 @@ const BLOCK_SIZE: usize = 65536;
 
 pub struct SSTable {
     pub path: PathBuf,
+    data: Data,
     file: BufWriter<File>,
     current_block_size: usize,
 }
@@ -39,9 +41,11 @@ impl SSTable {
         let file = OpenOptions::new().append(true).create(true).open(&path)?;
         let file = BufWriter::new(file);
         let current_block_size = 0;
+        let data = Data::new(dir)?;
 
         Ok(SSTable {
             path,
+            data,
             file,
             current_block_size,
         })
@@ -51,8 +55,10 @@ impl SSTable {
         let file = OpenOptions::new().append(true).create(true).open(&path)?;
         let file = BufWriter::new(file);
         let current_block_size = 0;
+        let data = Data::from_path(path)?;
         Ok(SSTable {
             path: path.to_owned(),
+            data,
             file,
             current_block_size,
         })
