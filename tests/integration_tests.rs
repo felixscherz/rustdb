@@ -3,6 +3,7 @@ use std::{
     path::Path,
 };
 
+#[test]
 fn clear_data() {
     let path = Path::new("data");
     dbg!(path.read_dir().unwrap().count());

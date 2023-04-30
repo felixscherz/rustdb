@@ -103,6 +103,7 @@ mod tests {
         let result_offset = index.get(&entry.key.as_slice()).unwrap();
         assert!(result_offset.is_some());
     }
+
     fn create_entry() -> Entry {
         Entry {
             key: vec![1, 2, 3],
