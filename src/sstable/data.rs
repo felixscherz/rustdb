@@ -168,6 +168,6 @@ mod tests {
     fn create_data() -> io::Result<Data> {
         let path = create_path();
         let timestamp = create_timestamp();
-        Data::new(&path.join(timestamp.to_string() + "data.sstable"))
+        Data::new(&path.join(timestamp.to_string() + ".data.sstable"))
     }
 }
