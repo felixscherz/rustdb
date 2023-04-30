@@ -40,10 +40,11 @@ impl SSTable {
             .as_micros();
 
         let path = Path::new(dir).join(timestamp.to_string() + ".sstable");
+        let data_path = Path::new(dir).join(timestamp.to_string() + ".data.sstable");
         let file = OpenOptions::new().append(true).create(true).open(&path)?;
         let file = BufWriter::new(file);
         let current_block_size = 0;
-        let data = Data::new(dir, timestamp)?;
+        let data = Data::new(&data_path)?;
 
         Ok(SSTable {
             path,

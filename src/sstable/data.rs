@@ -30,12 +30,14 @@ impl Iterator for DataIterator {
 }
 
 impl Data {
-    pub fn new(dir: &Path, timestamp: u128) -> io::Result<Data> {
-        let path = Path::new(dir).join(timestamp.to_string() + ".data.sstable");
-        let file = OpenOptions::new().append(true).create(true).open(&path)?;
+    pub fn new(path: &Path) -> io::Result<Data> {
+        let file = OpenOptions::new().append(true).create(true).open(path)?;
         let file = BufWriter::new(file);
 
-        Ok(Data { path, file })
+        Ok(Data {
+            path: path.to_path_buf(),
+            file,
+        })
     }
 
     pub fn from_path(path: &Path) -> io::Result<Data> {
@@ -172,6 +174,6 @@ mod tests {
     fn create_data() -> io::Result<Data> {
         let path = create_path();
         let timestamp = create_timestamp();
-        Data::new(&path, timestamp)
+        Data::new(&path.join(timestamp.to_string() + "data.sstable"))
     }
 }
