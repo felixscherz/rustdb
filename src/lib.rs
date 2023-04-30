@@ -1,12 +1,11 @@
-pub mod memtable;
-pub mod wal;
-pub mod sstable;
 pub mod database;
+pub mod memtable;
+pub mod sstable;
+pub mod wal;
 
 pub fn add(left: usize, right: usize) -> usize {
     left + right
 }
-
 
 #[cfg(test)]
 mod tests {
@@ -19,7 +18,4 @@ mod tests {
         let result = add(2, 2);
         assert_eq!(result, 4);
     }
-
 }
-
-

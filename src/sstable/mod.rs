@@ -1,4 +1,4 @@
-pub mod sstable;
+mod data;
 pub mod iterator;
 pub mod merge;
-mod data;
+pub mod sstable;

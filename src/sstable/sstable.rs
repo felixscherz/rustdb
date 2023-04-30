@@ -5,7 +5,9 @@ use std::{
     time::{SystemTime, UNIX_EPOCH},
 };
 
-use super::data::Data;
+use crate::database::entry::Entry;
+
+use super::data::{Data, DataIterator};
 use super::iterator::{SSTableEntry, SSTableIterator};
 
 // +---------------+---------------+-----------------+-...-+--...--+-----------------+
@@ -41,7 +43,7 @@ impl SSTable {
         let file = OpenOptions::new().append(true).create(true).open(&path)?;
         let file = BufWriter::new(file);
         let current_block_size = 0;
-        let data = Data::new(dir)?;
+        let data = Data::new(dir, timestamp)?;
 
         Ok(SSTable {
             path,
@@ -55,7 +57,13 @@ impl SSTable {
         let file = OpenOptions::new().append(true).create(true).open(&path)?;
         let file = BufWriter::new(file);
         let current_block_size = 0;
-        let data = Data::from_path(path)?;
+        let binding = path.clone().to_path_buf();
+        let data_path = binding
+            .to_str()
+            .unwrap()
+            .replace(".sstable", ".data.sstable");
+        let data_path = Path::new(&data_path);
+        let data = Data::from_path(&data_path)?;
         Ok(SSTable {
             path: path.to_owned(),
             data,
@@ -71,13 +79,13 @@ impl SSTable {
             // write this item to index
         }
         self.current_block_size += entry_size;
-
-        self.file.write_all(&key.len().to_le_bytes())?;
-        self.file.write_all(&(false as u8).to_le_bytes())?;
-        self.file.write_all(&value.len().to_le_bytes())?;
-        self.file.write_all(key)?;
-        self.file.write_all(value)?;
-        self.file.write_all(&timestamp.to_le_bytes())?;
+        let entry = Entry {
+            key: key.to_vec(),
+            value: Some(value.to_vec()),
+            deleted: false,
+            timestamp,
+        };
+        self.data.write(&entry)?;
         Ok(())
     }
 
@@ -86,23 +94,32 @@ impl SSTable {
         if self.current_block_size + entry_size > BLOCK_SIZE {
             self.current_block_size = 0;
         }
-        self.file.write_all(&key.len().to_le_bytes())?;
-        self.file.write_all(&(true as u8).to_le_bytes())?;
-        self.file.write_all(key)?;
-        self.file.write_all(&timestamp.to_le_bytes())?;
+        let entry = Entry {
+            key: key.to_vec(),
+            value: None,
+            deleted: true,
+            timestamp,
+        };
+        self.data.write(&entry)?;
         Ok(())
     }
 
     pub fn flush(&mut self) -> io::Result<()> {
-        self.file.flush()
+        self.file.flush()?;
+        self.data.flush()
     }
 
     pub fn get(&self, key: &[u8]) -> io::Result<Option<SSTableEntry>> {
         // simply go through entire sstable
-        let iterator = SSTableIterator::new(self.path.clone())?;
+        let iterator = DataIterator::new(self.data.path.clone())?;
         for entry in iterator {
             if entry.key.as_slice() == key {
-                return Ok(Some(entry));
+                return Ok(Some(SSTableEntry {
+                    key: entry.key,
+                    value: entry.value,
+                    timestamp: entry.timestamp,
+                    deleted: entry.deleted,
+                }));
             }
         }
         Ok(None)
@@ -136,7 +153,37 @@ mod tests {
     use super::*;
 
     #[test]
-    fn nothing() {
-        assert!(true)
+    fn test_get_entry_from_sstable() {
+        let mut sstable = create_sstable().unwrap();
+        let entry = create_entry();
+        sstable
+            .set(
+                entry.key.as_slice(),
+                entry.value.unwrap().as_slice(),
+                entry.timestamp,
+            )
+            .unwrap();
+        sstable.flush().unwrap();
+        let return_value = sstable.get(entry.key.as_slice()).unwrap();
+        assert!(return_value.is_some());
+        assert_eq!(return_value.unwrap().key, entry.key);
+    }
+
+    fn create_entry() -> Entry {
+        Entry {
+            key: vec![1, 2, 3],
+            value: Some(vec![9]),
+            timestamp: 1,
+            deleted: false,
+        }
+    }
+
+    fn create_path() -> PathBuf {
+        PathBuf::from("data")
+    }
+
+    fn create_sstable() -> io::Result<SSTable> {
+        let path = create_path();
+        SSTable::new(&path)
     }
 }

@@ -4,7 +4,6 @@ pub struct MemTableIterator {
     entries: Vec<MemTableEntry>,
 }
 
-
 impl MemTableIterator {
     pub fn new(entries: Vec<MemTableEntry>) -> Self {
         MemTableIterator { entries }
@@ -19,4 +18,3 @@ impl Iterator for MemTableIterator {
         self.entries.pop()
     }
 }
-

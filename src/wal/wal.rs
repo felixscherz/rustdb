@@ -145,5 +145,4 @@ mod tests {
         let entry = create_entry();
         write_to_wal(&mut wal, entry)
     }
-
 }

@@ -4,4 +4,3 @@ pub struct Entry {
     pub timestamp: u128,
     pub deleted: bool,
 }
-
