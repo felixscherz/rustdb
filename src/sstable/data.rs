@@ -2,7 +2,6 @@ use crate::database::entry::Entry;
 use std::fs::OpenOptions;
 use std::io::{self, BufReader};
 use std::path::{Path, PathBuf};
-use std::time::{SystemTime, UNIX_EPOCH};
 use std::{fs::File, io::BufWriter, io::Read, io::Write};
 
 pub struct Data {
@@ -31,12 +30,7 @@ impl Iterator for DataIterator {
 }
 
 impl Data {
-    pub fn new(dir: &Path) -> io::Result<Data> {
-        let timestamp = SystemTime::now()
-            .duration_since(UNIX_EPOCH)
-            .unwrap()
-            .as_micros();
-
+    pub fn new(dir: &Path, timestamp: u128) -> io::Result<Data> {
         let path = Path::new(dir).join(timestamp.to_string() + ".data.sstable");
         let file = OpenOptions::new().append(true).create(true).open(&path)?;
         let file = BufWriter::new(file);
@@ -53,7 +47,7 @@ impl Data {
         })
     }
     pub fn write(&mut self, entry: &Entry) -> io::Result<()> {
-        entry.write(&mut self.file);
+        entry.write(&mut self.file)?;
         Ok(())
     }
 
@@ -136,5 +130,48 @@ impl Entry {
             timestamp,
             deleted,
         })
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use std::time::{SystemTime, UNIX_EPOCH};
+
+    #[test]
+    fn test_get_entry_from_data() {
+        let mut data = create_data().unwrap();
+        let entry = create_entry();
+        data.write(&entry).unwrap();
+        data.flush().unwrap();
+        let return_value = data.get(&entry.key.as_slice()).unwrap();
+        assert!(return_value.is_some());
+    }
+
+    fn create_entry() -> Entry {
+        Entry {
+            key: vec![1, 2, 3],
+            value: Some(vec![9]),
+            timestamp: 1,
+            deleted: false,
+        }
+    }
+
+    fn create_path() -> PathBuf {
+        PathBuf::from("data")
+    }
+
+    fn create_timestamp() -> u128 {
+        let timestamp = SystemTime::now()
+            .duration_since(UNIX_EPOCH)
+            .unwrap()
+            .as_micros();
+        timestamp
+    }
+
+    fn create_data() -> io::Result<Data> {
+        let path = create_path();
+        let timestamp = create_timestamp();
+        Data::new(&path, timestamp)
     }
 }

@@ -177,7 +177,8 @@ mod tests {
         write_entry_to_db(&mut db, &entry);
         let path = create_path();
         db.flush(&path).ok();
-        assert!(db.get(&entry.key.as_slice()).is_some());
+        let return_value = db.get(&entry.key.as_slice());
+        assert!(return_value.is_some());
     }
 
     #[test]
