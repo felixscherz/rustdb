@@ -31,13 +31,7 @@ impl Iterator for DataIterator {
 
 impl Data {
     pub fn new(path: &Path) -> io::Result<Data> {
-        let file = OpenOptions::new().append(true).create(true).open(path)?;
-        let file = BufWriter::new(file);
-
-        Ok(Data {
-            path: path.to_path_buf(),
-            file,
-        })
+        Self::from_path(path)
     }
 
     pub fn from_path(path: &Path) -> io::Result<Data> {
