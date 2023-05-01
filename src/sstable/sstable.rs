@@ -7,8 +7,11 @@ use std::{
 
 use crate::database::entry::Entry;
 
-use super::data::{Data, DataIterator};
 use super::iterator::{SSTableEntry, SSTableIterator};
+use super::{
+    data::{Data, DataIterator},
+    index::Index,
+};
 
 // +---------------+---------------+-----------------+-...-+--...--+-----------------+
 // | Key Size (8B) | Tombstone(1B) | Value Size (8B) | Key | Value | Timestamp (16B) |
@@ -19,6 +22,7 @@ const BLOCK_SIZE: usize = 65536;
 pub struct SSTable {
     pub path: PathBuf,
     data: Data,
+    index: Index,
     file: BufWriter<File>,
     current_block_size: usize,
 }
@@ -41,14 +45,17 @@ impl SSTable {
 
         let path = Path::new(dir).join(timestamp.to_string() + ".sstable");
         let data_path = Path::new(dir).join(timestamp.to_string() + ".data.sstable");
+        let index_path = Path::new(dir).join(timestamp.to_string() + ".index.sstable");
         let file = OpenOptions::new().append(true).create(true).open(&path)?;
         let file = BufWriter::new(file);
         let current_block_size = 0;
         let data = Data::new(&data_path)?;
+        let index = Index::new(&index_path)?;
 
         Ok(SSTable {
             path,
             data,
+            index,
             file,
             current_block_size,
         })
@@ -63,11 +70,18 @@ impl SSTable {
             .to_str()
             .unwrap()
             .replace(".sstable", ".data.sstable");
+        let index_path = binding
+            .to_str()
+            .unwrap()
+            .replace(".sstable", ".index.sstable");
         let data_path = Path::new(&data_path);
         let data = Data::from_path(&data_path)?;
+        let index_path = Path::new(&index_path);
+        let index = Index::from_path(&index_path)?;
         Ok(SSTable {
             path: path.to_owned(),
             data,
+            index,
             file,
             current_block_size,
         })
