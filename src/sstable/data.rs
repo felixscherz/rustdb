@@ -4,6 +4,8 @@ use std::io::{self, BufReader};
 use std::path::{Path, PathBuf};
 use std::{fs::File, io::BufWriter, io::Read, io::Write};
 
+const USIZE_LEN: usize = std::mem::size_of::<usize>();
+
 pub struct Data {
     pub path: PathBuf,
     file: BufWriter<File>,
@@ -107,9 +109,9 @@ impl Data {
     }
 
     fn size_of_entry(entry: &Entry) -> usize {
-        let key_size = entry.key.len() + std::mem::size_of::<usize>();
+        let key_size = entry.key.len() + USIZE_LEN;
         let value_size = match &entry.value {
-            Some(val) => val.len() + std::mem::size_of::<usize>(),
+            Some(val) => val.len() + USIZE_LEN,
             None => 0,
         };
         let deleted_size = std::mem::size_of::<bool>();
@@ -185,8 +187,7 @@ mod tests {
         let entry = create_entry();
         data.write(&entry).unwrap();
         let offset = data.get_offset();
-        let entry_size = std::mem::size_of::<usize>() * 2 + 16 + 1 + 3 + 1;
-        println!("{}", std::mem::size_of::<usize>());
+        let entry_size = USIZE_LEN * 2 + 16 + 1 + 3 + 1;
         assert_ne!(offset, 0);
         assert_eq!(offset, entry_size);
     }
