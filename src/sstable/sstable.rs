@@ -89,32 +89,36 @@ impl SSTable {
 
     pub fn set(&mut self, key: &[u8], value: &[u8], timestamp: u128) -> io::Result<()> {
         let entry_size = size(key, Some(value), timestamp);
-        if self.current_block_size == 0 || self.current_block_size + entry_size > BLOCK_SIZE {
-            self.current_block_size = 0;
-            // write this item to index
-        }
-        self.current_block_size += entry_size;
         let entry = Entry {
             key: key.to_vec(),
             value: Some(value.to_vec()),
             deleted: false,
             timestamp,
         };
+        if self.current_block_size == 0 || self.current_block_size + entry_size > BLOCK_SIZE {
+            let offset = self.data.get_offset();
+            self.index.write(&entry, offset)?;
+            self.current_block_size = 0;
+            // write this item to index
+        }
+        self.current_block_size += entry_size;
         self.data.write(&entry)?;
         Ok(())
     }
 
     pub fn delete(&mut self, key: &[u8], timestamp: u128) -> io::Result<()> {
         let entry_size = size(key, None, timestamp);
-        if self.current_block_size + entry_size > BLOCK_SIZE {
-            self.current_block_size = 0;
-        }
         let entry = Entry {
             key: key.to_vec(),
             value: None,
             deleted: true,
             timestamp,
         };
+        if self.current_block_size + entry_size > BLOCK_SIZE {
+            let offset = self.data.get_offset();
+            self.index.write(&entry, offset)?;
+            self.current_block_size = 0;
+        }
         self.data.write(&entry)?;
         Ok(())
     }
