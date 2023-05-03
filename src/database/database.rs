@@ -1,9 +1,5 @@
 #![allow(dead_code)]
-use crate::{
-    memtable::{memtable::MemTableEntry, MemTable},
-    sstable::sstable::SSTable,
-    wal::wal::WAL,
-};
+use crate::{memtable::MemTable, sstable::sstable::SSTable, wal::wal::WAL};
 use std::{io, path::PathBuf};
 
 use std::path::Path;
@@ -24,15 +20,6 @@ struct DatabaseEntry {
 }
 
 impl DatabaseEntry {
-    fn from_memtable_entry(entry: &MemTableEntry) -> Self {
-        DatabaseEntry {
-            key: entry.key.clone(),
-            value: entry.value.clone(),
-            timestamp: entry.timestamp,
-            deleted: entry.deleted,
-        }
-    }
-
     fn from_entry(entry: &Entry) -> Self {
         DatabaseEntry {
             key: entry.key.clone(),
@@ -67,7 +54,7 @@ impl Database {
 
     pub fn get(&self, key: &[u8]) -> Option<DatabaseEntry> {
         if let Some(entry) = self.memtable.get(key) {
-            Some(DatabaseEntry::from_memtable_entry(entry))
+            Some(DatabaseEntry::from_entry(entry))
         } else {
             for path in self.sstables.iter() {
                 let sstable = SSTable::from_path(path).ok().unwrap();
@@ -110,8 +97,8 @@ mod tests {
         Database::new(&path).unwrap()
     }
 
-    fn create_memtable_entry() -> MemTableEntry {
-        MemTableEntry {
+    fn create_entry() -> Entry {
+        Entry {
             key: vec![1, 2, 3],
             value: Some(vec![9]),
             timestamp: 1,
@@ -122,7 +109,7 @@ mod tests {
     #[test]
     fn test_read_after_write() {
         let mut db = create_database();
-        let entry = create_memtable_entry();
+        let entry = create_entry();
         write_entry_to_db(&mut db, &entry);
         let db_entry = db.get(&entry.key.as_slice()).unwrap();
         assert_eq!(&entry.value.unwrap(), db_entry.value.as_ref().unwrap());
@@ -131,7 +118,7 @@ mod tests {
     #[test]
     fn test_sstable_path_is_added_on_flush() {
         let mut db = create_database();
-        let entry = create_memtable_entry();
+        let entry = create_entry();
         write_entry_to_db(&mut db, &entry);
         let path = create_path();
         db.flush(&path).ok();
@@ -142,7 +129,7 @@ mod tests {
     #[test]
     fn test_memtable_is_empty_after_flush() {
         let mut db = create_database();
-        let entry = create_memtable_entry();
+        let entry = create_entry();
         write_entry_to_db(&mut db, &entry);
         let path = create_path();
         db.flush(&path).ok();
@@ -152,7 +139,7 @@ mod tests {
     #[test]
     fn test_wal_is_empty_after_flush() {
         let mut db = create_database();
-        let entry = create_memtable_entry();
+        let entry = create_entry();
         write_entry_to_db(&mut db, &entry);
         let path = create_path();
         db.flush(&path).ok();
@@ -164,7 +151,7 @@ mod tests {
         let mut db = create_database();
         let path = create_path();
         let mut sstable = SSTable::new(&path).unwrap();
-        let entry = create_memtable_entry();
+        let entry = create_entry();
         write_entry_to_db(&mut db, &entry);
         write_entry_to_sstable(&mut sstable, &entry);
         sstable.flush().ok();
@@ -176,7 +163,7 @@ mod tests {
     #[test]
     fn test_scan_sstable_for_entries_when_not_found_in_memtable() {
         let mut db = create_database();
-        let entry = create_memtable_entry();
+        let entry = create_entry();
         write_entry_to_db(&mut db, &entry);
         let path = create_path();
         db.flush(&path).ok();
@@ -187,7 +174,7 @@ mod tests {
     #[test]
     fn test_scanning_sstables_for_non_existent_entry_returns_none() {
         let mut db = create_database();
-        let entry = create_memtable_entry();
+        let entry = create_entry();
         write_entry_to_db(&mut db, &entry);
         let path = create_path();
         db.flush(&path).ok();
@@ -196,7 +183,7 @@ mod tests {
         assert!(db.get(key.as_slice()).is_none());
     }
 
-    fn write_entry_to_sstable(sstable: &mut SSTable, entry: &MemTableEntry) {
+    fn write_entry_to_sstable(sstable: &mut SSTable, entry: &Entry) {
         let entry = Entry {
             key: entry.key.clone(),
             value: entry.value.clone(),
@@ -206,7 +193,7 @@ mod tests {
         sstable.write(&entry).ok();
     }
 
-    fn write_entry_to_db(db: &mut Database, entry: &MemTableEntry) {
+    fn write_entry_to_db(db: &mut Database, entry: &Entry) {
         db.set(
             entry.key.as_slice(),
             entry.value.as_ref().unwrap().as_slice(),

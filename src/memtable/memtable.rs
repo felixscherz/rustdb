@@ -1,21 +1,15 @@
+use crate::database::entry::Entry;
+
 use super::iterator::MemTableIterator;
 
 pub struct MemTable {
-    entries: Vec<MemTableEntry>,
+    entries: Vec<Entry>,
     pub size: usize,
-}
-
-#[derive(Clone, Debug)]
-pub struct MemTableEntry {
-    pub key: Vec<u8>,
-    pub value: Option<Vec<u8>>,
-    pub timestamp: u128,
-    pub deleted: bool,
 }
 
 impl IntoIterator for &MemTable {
     type IntoIter = MemTableIterator;
-    type Item = MemTableEntry;
+    type Item = Entry;
 
     fn into_iter(self) -> MemTableIterator {
         MemTableIterator::new(self.entries.clone())
@@ -36,7 +30,7 @@ impl MemTable {
     }
 
     pub fn set(&mut self, key: &[u8], value: &[u8], timestamp: u128) {
-        let entry = MemTableEntry {
+        let entry = Entry {
             key: key.to_owned(),
             value: Some(value.to_owned()),
             timestamp,
@@ -63,7 +57,7 @@ impl MemTable {
         }
     }
 
-    pub fn get(&self, key: &[u8]) -> Option<&MemTableEntry> {
+    pub fn get(&self, key: &[u8]) -> Option<&Entry> {
         if let Ok(idx) = self.get_index(key) {
             return Some(&self.entries[idx]);
         }
@@ -71,7 +65,7 @@ impl MemTable {
     }
 
     pub fn delete(&mut self, key: &[u8], timestamp: u128) {
-        let entry = MemTableEntry {
+        let entry = Entry {
             key: key.to_owned(),
             value: None,
             timestamp,
@@ -104,8 +98,8 @@ pub mod tests {
     }
 
     pub fn prepare_memtable() -> MemTable {
-        let entries: Vec<MemTableEntry> = (0..10)
-            .map(|i| MemTableEntry {
+        let entries: Vec<Entry> = (0..10)
+            .map(|i| Entry {
                 key: vec![i],
                 value: Some(vec![i]),
                 timestamp: 12,
