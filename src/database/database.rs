@@ -12,24 +12,6 @@ struct Database {
     sstables: Vec<PathBuf>,
 }
 
-struct DatabaseEntry {
-    pub key: Vec<u8>,
-    pub value: Option<Vec<u8>>,
-    pub timestamp: u128,
-    pub deleted: bool,
-}
-
-impl DatabaseEntry {
-    fn from_entry(entry: &Entry) -> Self {
-        DatabaseEntry {
-            key: entry.key.clone(),
-            value: entry.value.clone(),
-            timestamp: entry.timestamp,
-            deleted: entry.deleted,
-        }
-    }
-}
-
 impl Database {
     pub fn new(dir: &Path) -> io::Result<Database> {
         let wal = WAL::new(dir)?;
@@ -52,14 +34,14 @@ impl Database {
         self.wal.delete(key, timestamp)
     }
 
-    pub fn get(&self, key: &[u8]) -> Option<DatabaseEntry> {
+    pub fn get(&self, key: &[u8]) -> Option<Entry> {
         if let Some(entry) = self.memtable.get(key) {
-            Some(DatabaseEntry::from_entry(entry))
+            Some(entry.clone())
         } else {
             for path in self.sstables.iter() {
                 let sstable = SSTable::from_path(path).ok().unwrap();
                 if let Some(entry) = sstable.get(key).ok().unwrap() {
-                    return Some(DatabaseEntry::from_entry(&entry));
+                    return Some(entry.clone());
                 }
             }
             None
