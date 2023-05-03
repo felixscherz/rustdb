@@ -17,7 +17,7 @@ pub struct IndexIterator {
 
 pub struct IndexEntry {
     pub key: Vec<u8>,
-    pub offset: usize,
+    pub offset: u64,
 }
 
 impl IndexIterator {
@@ -49,7 +49,7 @@ impl Index {
             file,
         })
     }
-    pub fn write(&mut self, entry: &Entry, offset: usize) -> io::Result<()> {
+    pub fn write(&mut self, entry: &Entry, offset: u64) -> io::Result<()> {
         self.file.write_all(&entry.key.len().to_le_bytes())?;
         self.file.write_all(&entry.key)?;
         self.file.write_all(&offset.to_le_bytes())?;
@@ -71,7 +71,7 @@ impl Index {
         if file.read_exact(&mut offset_buffer).is_err() {
             return None;
         }
-        let offset = usize::from_le_bytes(offset_buffer);
+        let offset = u64::from_le_bytes(offset_buffer);
         Some(IndexEntry { key, offset })
     }
 
@@ -79,7 +79,7 @@ impl Index {
         self.file.flush()
     }
 
-    pub fn get(&self, key: &[u8]) -> io::Result<Option<usize>> {
+    pub fn get(&self, key: &[u8]) -> io::Result<Option<u64>> {
         let iterator = IndexIterator::new(self.path.clone())?;
         for entry in iterator {
             if entry.key.as_slice() == key {

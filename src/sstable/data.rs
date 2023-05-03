@@ -9,7 +9,7 @@ const USIZE_LEN: usize = std::mem::size_of::<usize>();
 pub struct Data {
     pub path: PathBuf,
     file: BufWriter<File>,
-    offset: usize,
+    offset: u64,
 }
 
 pub struct DataIterator {
@@ -86,7 +86,7 @@ impl Data {
 
     pub fn from_path(path: &Path) -> io::Result<Data> {
         let file = OpenOptions::new().append(true).create(true).open(&path)?;
-        let offset: usize = file.metadata().unwrap().len().try_into().unwrap();
+        let offset = file.metadata().unwrap().len();
         let file = BufWriter::new(file);
         Ok(Data {
             path: path.to_owned(),
@@ -109,7 +109,7 @@ impl Data {
         Ok(())
     }
 
-    fn size_of_entry(entry: &Entry) -> usize {
+    fn size_of_entry(entry: &Entry) -> u64 {
         let key_size = entry.key.len() + USIZE_LEN;
         let value_size = match &entry.value {
             Some(val) => val.len() + USIZE_LEN,
@@ -117,10 +117,12 @@ impl Data {
         };
         let deleted_size = std::mem::size_of::<bool>();
         let timestamp_size = std::mem::size_of::<u128>();
-        key_size + value_size + deleted_size + timestamp_size
+        (key_size + value_size + deleted_size + timestamp_size)
+            .try_into()
+            .unwrap()
     }
 
-    pub fn get_offset(&self) -> usize {
+    pub fn get_offset(&self) -> u64 {
         self.offset
     }
 
@@ -188,7 +190,7 @@ mod tests {
         let entry = create_entry();
         data.write(&entry).unwrap();
         let offset = data.get_offset();
-        let entry_size = USIZE_LEN * 2 + 16 + 1 + 3 + 1;
+        let entry_size: u64 = (USIZE_LEN * 2 + 16 + 1 + 3 + 1).try_into().unwrap();
         assert_ne!(offset, 0);
         assert_eq!(offset, entry_size);
     }

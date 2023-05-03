@@ -1,4 +1,5 @@
 use std::{
+    cmp::Ordering,
     fs::{read_dir, File, OpenOptions},
     io::{self, BufWriter, Write},
     path::{Path, PathBuf},
@@ -7,10 +8,13 @@ use std::{
 
 use crate::database::entry::Entry;
 
-use super::iterator::{SSTableEntry, SSTableIterator};
 use super::{
     data::{Data, DataIterator},
     index::Index,
+};
+use super::{
+    index::IndexIterator,
+    iterator::{SSTableEntry, SSTableIterator},
 };
 
 // +---------------+---------------+-----------------+-...-+--...--+-----------------+
@@ -129,8 +133,18 @@ impl SSTable {
     }
 
     pub fn get(&self, key: &[u8]) -> io::Result<Option<SSTableEntry>> {
-        // simply go through entire sstable
-        let iterator = DataIterator::new(self.data.path.clone(), 0)?;
+        let mut offset: u64 = 0;
+        for entry in IndexIterator::new(self.index.path.clone())? {
+            match key.cmp(entry.key.as_slice()) {
+                Ordering::Equal => {
+                    offset = entry.offset;
+                    break;
+                }
+                Ordering::Greater => offset = entry.offset,
+                Ordering::Less => break,
+            }
+        }
+        let iterator = DataIterator::new(self.data.path.clone(), offset)?;
         for entry in iterator {
             if entry.key.as_slice() == key {
                 return Ok(Some(SSTableEntry {
