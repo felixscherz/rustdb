@@ -1,12 +1,14 @@
 #![allow(dead_code)]
 use crate::{
     memtable::{memtable::MemTableEntry, MemTable},
-    sstable::{iterator::SSTableEntry, sstable::SSTable},
+    sstable::sstable::SSTable,
     wal::wal::WAL,
 };
 use std::{io, path::PathBuf};
 
 use std::path::Path;
+
+use super::entry::Entry;
 
 struct Database {
     memtable: MemTable,
@@ -31,7 +33,7 @@ impl DatabaseEntry {
         }
     }
 
-    fn from_sstable_entry(entry: &SSTableEntry) -> Self {
+    fn from_entry(entry: &Entry) -> Self {
         DatabaseEntry {
             key: entry.key.clone(),
             value: entry.value.clone(),
@@ -70,7 +72,7 @@ impl Database {
             for path in self.sstables.iter() {
                 let sstable = SSTable::from_path(path).ok().unwrap();
                 if let Some(entry) = sstable.get(key).ok().unwrap() {
-                    return Some(DatabaseEntry::from_sstable_entry(&entry));
+                    return Some(DatabaseEntry::from_entry(&entry));
                 }
             }
             None
@@ -79,12 +81,13 @@ impl Database {
     fn flush(&mut self, dir: &Path) -> io::Result<()> {
         let mut sstable = SSTable::new(dir)?;
         for entry in &self.memtable {
-            match entry.value {
-                Some(value) => {
-                    sstable.set(entry.key.as_slice(), value.as_slice(), entry.timestamp)?
-                }
-                None => sstable.delete(entry.key.as_slice(), entry.timestamp)?,
+            let entry = Entry {
+                key: entry.key,
+                value: entry.value,
+                deleted: entry.deleted,
+                timestamp: entry.timestamp,
             };
+            sstable.write(&entry)?;
         }
         sstable.flush()?;
         self.sstables.push(sstable.path);
@@ -194,13 +197,13 @@ mod tests {
     }
 
     fn write_entry_to_sstable(sstable: &mut SSTable, entry: &MemTableEntry) {
-        sstable
-            .set(
-                entry.key.as_slice(),
-                entry.value.as_ref().unwrap().as_slice(),
-                entry.timestamp,
-            )
-            .ok();
+        let entry = Entry {
+            key: entry.key.clone(),
+            value: entry.value.clone(),
+            deleted: entry.deleted,
+            timestamp: entry.timestamp,
+        };
+        sstable.write(&entry).ok();
     }
 
     fn write_entry_to_db(db: &mut Database, entry: &MemTableEntry) {

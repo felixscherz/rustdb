@@ -12,10 +12,7 @@ use super::{
     data::{Data, DataIterator},
     index::Index,
 };
-use super::{
-    index::IndexIterator,
-    iterator::{SSTableEntry, SSTableIterator},
-};
+use super::{index::IndexIterator, iterator::SSTableIterator};
 
 // +---------------+---------------+-----------------+-...-+--...--+-----------------+
 // | Key Size (8B) | Tombstone(1B) | Value Size (8B) | Key | Value | Timestamp (16B) |
@@ -33,7 +30,7 @@ pub struct SSTable {
 
 impl IntoIterator for SSTable {
     type IntoIter = SSTableIterator;
-    type Item = SSTableEntry;
+    type Item = Entry;
 
     fn into_iter(self) -> SSTableIterator {
         SSTableIterator::new(self.path).unwrap()
@@ -91,14 +88,8 @@ impl SSTable {
         })
     }
 
-    pub fn set(&mut self, key: &[u8], value: &[u8], timestamp: u128) -> io::Result<()> {
-        let entry_size = size(key, Some(value), timestamp);
-        let entry = Entry {
-            key: key.to_vec(),
-            value: Some(value.to_vec()),
-            deleted: false,
-            timestamp,
-        };
+    pub fn write(&mut self, entry: &Entry) -> io::Result<()> {
+        let entry_size = size(entry);
         if self.current_block_size == 0 || self.current_block_size + entry_size > BLOCK_SIZE {
             let offset = self.data.get_offset();
             self.index.write(&entry, offset)?;
@@ -110,29 +101,12 @@ impl SSTable {
         Ok(())
     }
 
-    pub fn delete(&mut self, key: &[u8], timestamp: u128) -> io::Result<()> {
-        let entry_size = size(key, None, timestamp);
-        let entry = Entry {
-            key: key.to_vec(),
-            value: None,
-            deleted: true,
-            timestamp,
-        };
-        if self.current_block_size + entry_size > BLOCK_SIZE {
-            let offset = self.data.get_offset();
-            self.index.write(&entry, offset)?;
-            self.current_block_size = 0;
-        }
-        self.data.write(&entry)?;
-        Ok(())
-    }
-
     pub fn flush(&mut self) -> io::Result<()> {
         self.file.flush()?;
         self.data.flush()
     }
 
-    pub fn get(&self, key: &[u8]) -> io::Result<Option<SSTableEntry>> {
+    pub fn get(&self, key: &[u8]) -> io::Result<Option<Entry>> {
         let mut offset: u64 = 0;
         for entry in IndexIterator::new(self.index.path.clone())? {
             match key.cmp(entry.key.as_slice()) {
@@ -147,7 +121,7 @@ impl SSTable {
         let iterator = DataIterator::new(self.data.path.clone(), offset)?;
         for entry in iterator {
             if entry.key.as_slice() == key {
-                return Ok(Some(SSTableEntry {
+                return Ok(Some(Entry {
                     key: entry.key,
                     value: entry.value,
                     timestamp: entry.timestamp,
@@ -159,11 +133,13 @@ impl SSTable {
     }
 }
 
-fn size(key: &[u8], value: Option<&[u8]>, timestamp: u128) -> usize {
+fn size(entry: &Entry) -> usize {
     let boolean_size = 1;
-    let size_in_bytes =
-        key.len() + key.len().to_le_bytes().len() + timestamp.to_le_bytes().len() + boolean_size;
-    if let Some(val) = value {
+    let size_in_bytes = entry.key.len()
+        + entry.key.len().to_le_bytes().len()
+        + entry.timestamp.to_le_bytes().len()
+        + boolean_size;
+    if let Some(val) = &entry.value {
         size_in_bytes + val.len() + val.len().to_le_bytes().len()
     } else {
         size_in_bytes
@@ -189,13 +165,7 @@ mod tests {
     fn test_get_entry_from_sstable() {
         let mut sstable = create_sstable().unwrap();
         let entry = create_entry();
-        sstable
-            .set(
-                entry.key.as_slice(),
-                entry.value.unwrap().as_slice(),
-                entry.timestamp,
-            )
-            .unwrap();
+        sstable.write(&entry).unwrap();
         sstable.flush().unwrap();
         let return_value = sstable.get(entry.key.as_slice()).unwrap();
         assert!(return_value.is_some());

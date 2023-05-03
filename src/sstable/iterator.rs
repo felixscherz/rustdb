@@ -3,13 +3,7 @@ use std::io::BufReader;
 use std::io::{self, Read};
 use std::path::PathBuf;
 
-#[derive(Debug)]
-pub struct SSTableEntry {
-    pub key: Vec<u8>,
-    pub value: Option<Vec<u8>>,
-    pub timestamp: u128,
-    pub deleted: bool,
-}
+use crate::database::entry::Entry;
 
 pub struct SSTableIterator {
     /// will turn into iterator over sstable
@@ -29,9 +23,9 @@ impl SSTableIterator {
 // +---------------+---------------+-----------------+-...-+--...--+-----------------+
 
 impl Iterator for SSTableIterator {
-    type Item = SSTableEntry; // item that is returned by `next` method
+    type Item = Entry; // item that is returned by `next` method
 
-    fn next(&mut self) -> Option<SSTableEntry> {
+    fn next(&mut self) -> Option<Entry> {
         // reads the sequence of bytes corresponding to an SSTableEntry from the file
         let mut len_buffer = [0; 8]; // key length is encoded in first 8 bytes
         if self.reader.read_exact(&mut len_buffer).is_err() {
@@ -73,7 +67,7 @@ impl Iterator for SSTableIterator {
             return None;
         }
         let timestamp = u128::from_le_bytes(timestamp_buffer);
-        Some(SSTableEntry {
+        Some(Entry {
             key,
             value,
             timestamp,
