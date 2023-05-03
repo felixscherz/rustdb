@@ -1,6 +1,6 @@
 use crate::database::entry::Entry;
 use std::fs::OpenOptions;
-use std::io::{self, BufReader};
+use std::io::{self, BufReader, Seek, SeekFrom};
 use std::path::{Path, PathBuf};
 use std::{fs::File, io::BufWriter, io::Read, io::Write};
 
@@ -17,9 +17,10 @@ pub struct DataIterator {
 }
 
 impl DataIterator {
-    pub fn new(path: PathBuf) -> io::Result<DataIterator> {
+    pub fn new(path: PathBuf, offset: u64) -> io::Result<DataIterator> {
         let file = OpenOptions::new().read(true).open(path)?;
-        let reader = BufReader::new(file);
+        let mut reader = BufReader::new(file);
+        reader.seek(SeekFrom::Start(offset))?;
         Ok(DataIterator { reader })
     }
 }
@@ -129,7 +130,7 @@ impl Data {
 
     pub fn get(&self, key: &[u8]) -> io::Result<Option<Entry>> {
         // simply go through entire sstable
-        let iterator = DataIterator::new(self.path.clone())?;
+        let iterator = DataIterator::new(self.path.clone(), 0)?;
         for entry in iterator {
             if entry.key.as_slice() == key {
                 return Ok(Some(entry));

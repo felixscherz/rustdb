@@ -130,7 +130,7 @@ impl SSTable {
 
     pub fn get(&self, key: &[u8]) -> io::Result<Option<SSTableEntry>> {
         // simply go through entire sstable
-        let iterator = DataIterator::new(self.data.path.clone())?;
+        let iterator = DataIterator::new(self.data.path.clone(), 0)?;
         for entry in iterator {
             if entry.key.as_slice() == key {
                 return Ok(Some(SSTableEntry {
